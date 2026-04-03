@@ -6,9 +6,9 @@ services:
     container_name: image-name-container
     restart: always
     env_file:
-      - /home/ubuntu/.config/service-envs/name-service/.env
+      - /home/ubuntu/.config/service-envs/name-service/.env # host path to the .env file
     volumes:
-      - /home/ubuntu/.config/mount-file/keyToMount:/usr/src/app/keyToMount
+      - /home/ubuntu/.config/mount-file/keyToMount:/usr/src/app/keyToMount # host path to the file to be mounted in the container
     ports:
       - "<host-port>:<container-port>"
     networks:
