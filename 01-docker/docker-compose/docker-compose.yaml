@@ -10,7 +10,7 @@ services:
     volumes:
       - /home/ubuntu/.config/mount-file/keyToMount:/usr/src/app/keyToMount
     ports:
-      - "3001:5501"
+      - "<host-port>:<container-port>"
     networks:
       - <network-name>
     deploy:
@@ -23,7 +23,7 @@ services:
         max-size: "50m"
         max-file: "2"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5501/v1/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:<container-port>/v1/health"]
       interval: 60s
       timeout: 30s
       retries: 3
