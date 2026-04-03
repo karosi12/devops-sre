@@ -7,7 +7,7 @@ A comprehensive DevOps curriculum for engineers covering infrastructure as code,
 | Module | Description |
 |--------|-------------|
 | [01-docker](01-docker/) | Container fundamentals with Docker |
-| [02-kubernetes](02-kubernetes/) | K8s orchestration & KCNA prep |
+| [02-kubernetes](02-kubernetes/) | K8s orchestration |
 | [03-terraform](03-terraform/) | Terraform IaC for AWS |
 | [04-pulumi](04-pulumi/) | Pulumi TypeScript IaC |
 | [05-cicd](05-cicd/) | CI/CD pipelines |
@@ -31,7 +31,7 @@ Containerize applications using Docker. Build images, manage networks/volumes, a
 ---
 
 ### [02 - Kubernetes](02-kubernetes/)
-**Purpose:** Container orchestration and KCNA certification prep
+**Purpose:** Container orchestration and certification prep
 
 Deploy, scale, and manage containerized applications in production using Kubernetes.
 
