@@ -1,12 +1,12 @@
 version: "3.8"
 
 services:
-  image-name-service:
+  name-service:
     image: <aws-account-id>.dkr.ecr.us-<region>.amazonaws.com/<repository-name>:image-name-service
-    container_name: image-name-service
+    container_name: image-name-container
     restart: always
     env_file:
-      - /home/ubuntu/.config/service-envs/image-name-service/.env
+      - /home/ubuntu/.config/service-envs/name-service/.env
     volumes:
       - /home/ubuntu/.config/mount-file/keyToMount:/usr/src/app/keyToMount
     ports:
