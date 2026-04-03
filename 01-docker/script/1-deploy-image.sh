@@ -37,8 +37,8 @@ fi
 docker run -d --env-file=/home/ubuntu/.config/service-envs/image-name-service/.env \
 # Mounting the necessary files for the service
 -v /home/ubuntu/.config/mount-file/keyToMount:/usr/src/app/keyToMount \
---name image-name-service --restart=always -p 3001:5501 \
---health-cmd="wget --spider -q http://localhost:5501/v1/health || exit 1" \
+--name image-name-service --restart=always -p <host-port>:<container-port> \
+--health-cmd="wget --spider -q http://localhost:<container-port>/v1/health || exit 1" \
 --health-interval=60s \
 --health-timeout=30s \
 --health-retries=3 \
