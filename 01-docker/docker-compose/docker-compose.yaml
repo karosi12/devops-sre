@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   name-service:
-    image: <aws-account-id>.dkr.ecr.us-<region>.amazonaws.com/<repository-name>:image-name-service
+    image: <aws-account-id>.dkr.ecr.us-<region>.amazonaws.com/<repository-name>:image-name-service # replace with your actual image URI
     container_name: image-name-container
     restart: always
     env_file:
