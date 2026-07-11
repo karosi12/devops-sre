@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Pulumi
+Pulumi.*.yaml
+Pulumi.*.yml
+*.stack
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Docker
+*.log
+*.pid
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets
+*.pem
+*.key
+keys/
+*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kilo
+.kilocode
+
+# Build outputs
+dist/
+build/
+08-backend/ghp_token
+02-kubernetes/nodejs-k8s.zip
+02-kubernetes/nodejs-app/.env
+02-kubernetes/01-k8s/.env
