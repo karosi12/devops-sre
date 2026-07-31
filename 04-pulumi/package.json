@@ -1,0 +1,35 @@
+{
+    "name": "ec2",
+    "main": "index.ts",
+    "devDependencies": {
+        "@eslint/js": "^9.25.1",
+        "@pulumi/pulumi": "^3.113.0",
+        "@types/node": "^18",
+        "@typescript-eslint/eslint-plugin": "^8.31.0",
+        "@typescript-eslint/parser": "^8.31.0",
+        "eslint-config-prettier": "^10.1.2",
+        "eslint-plugin-prettier": "^4.2.1",
+        "prettier": "^3.5.3",
+        "typescript": "^5.0.0",
+        "typescript-eslint": "^8.31.0"
+    },
+    "scripts": {
+        "build": "tsc",
+        "lint": "eslint src/**/*.ts",
+        "lint:fix": "eslint src/**/*.ts --fix",
+        "format": "prettier --write 'src/**/*.{ts,tsx}'",
+        "format:check": "prettier --check 'src/**/*.{ts,tsx}'",
+        "format-all": "npm run format && npm run lint",
+        "preview": "pulumi preview",
+        "up": "pulumi up --yes",
+        "destroy": "pulumi destroy --yes"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "dependencies": {
+        "@pulumi/aws": "^7.14.0",
+        "@pulumi/kubernetes": "^4.25.0",
+        "@pulumi/pulumi": "^3.113.0"
+    }
+}
