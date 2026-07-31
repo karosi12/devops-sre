@@ -1,0 +1,123 @@
+# A/B testing — route specific users (e.g. by header or cookie) to version B.
+# Requires NGINX Ingress Controller.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-version-a
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-api
+      version: a
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        version: a
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v1
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-version-b
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-api
+      version: b
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        version: b
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v2
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-a
+spec:
+  selector:
+    app: nodejs-api
+    version: a
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-b
+spec:
+  selector:
+    app: nodejs-api
+    version: b
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nodejs-api-ab
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Experiment-Group"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "beta"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nodejs-api-b
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nodejs-api-default
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nodejs-api-a
+                port:
+                  number: 3000

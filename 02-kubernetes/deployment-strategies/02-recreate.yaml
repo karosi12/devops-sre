@@ -1,0 +1,54 @@
+# Recreate — terminate all old pods, then create new ones (brief downtime).
+# Use when only one version may run at a time (e.g. single-writer DB migrations).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-recreate
+  labels:
+    app: nodejs-api
+    strategy: recreate
+spec:
+  replicas: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nodejs-api
+      strategy: recreate
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        strategy: recreate
+        version: v1
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v1
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-recreate
+spec:
+  selector:
+    app: nodejs-api
+    strategy: recreate
+  ports:
+    - port: 3000
+      targetPort: 3000

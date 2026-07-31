@@ -1,0 +1,63 @@
+# Rolling Update (default) — gradual pod replacement, usually zero downtime.
+# Used by: 01-k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-rolling
+  labels:
+    app: nodejs-api
+    strategy: rolling
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # allow 1 extra pod above desired count during rollout
+      maxUnavailable: 0  # keep all desired pods available during rollout
+  selector:
+    matchLabels:
+      app: nodejs-api
+      strategy: rolling
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        strategy: rolling
+        version: v1
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v1
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-rolling
+spec:
+  selector:
+    app: nodejs-api
+    strategy: rolling
+  ports:
+    - port: 3000
+      targetPort: 3000
