@@ -1,0 +1,110 @@
+# Blue/Green — two full environments; switch traffic by changing the Service selector.
+#
+# Workflow:
+#   1. Deploy green (new version) while blue (current) serves traffic.
+#   2. Test green internally (port-forward or a test Service).
+#   3. Switch production Service selector from version=blue to version=green.
+#   4. Roll back instantly by switching selector back to blue.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-blue
+  labels:
+    app: nodejs-api
+    strategy: blue-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-api
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        version: blue
+        strategy: blue-green
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v1
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-api-green
+  labels:
+    app: nodejs-api
+    strategy: blue-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nodejs-api
+      version: green
+  template:
+    metadata:
+      labels:
+        app: nodejs-api
+        version: green
+        strategy: blue-green
+    spec:
+      containers:
+        - name: nodejs-api
+          image: ghcr.io/karosi12/nodejs-api:v2
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Production traffic — points at blue by default
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-prod
+spec:
+  selector:
+    app: nodejs-api
+    version: blue
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+# Optional: test green before cutover
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-api-green-test
+spec:
+  selector:
+    app: nodejs-api
+    version: green
+  ports:
+    - port: 3000
+      targetPort: 3000
