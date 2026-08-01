@@ -42,3 +42,5 @@ build/
 02-kubernetes/nodejs-k8s.zip
 02-kubernetes/nodejs-app/.env
 02-kubernetes/01-k8s/.env
+03-terraform/ec2/terraform.tfvars
+04-pulumi/docs/social-content-ec2-vpc.md
