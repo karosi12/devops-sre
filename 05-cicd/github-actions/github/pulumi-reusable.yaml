@@ -1,0 +1,71 @@
+name: Pulumi Reusable
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        required: true
+        type: string        # 'nodejs' or 'python'
+      stack-name:
+        required: true
+        type: string
+      command:
+        required: true
+        type: string         # 'preview' or 'up'
+      aws-role-arn:
+        required: true
+        type: string
+      aws-region:
+        required: false
+        type: string
+        default: 'us-east-1'
+    secrets:
+      PULUMI_ACCESS_TOKEN:
+        required: true
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+  pull-requests: write   # required for comment-on-pr
+
+jobs:
+  pulumi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.aws-role-arn }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Setup Node.js
+        if: inputs.language == 'nodejs'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node deps
+        if: inputs.language == 'nodejs'
+        run: npm ci
+
+      - name: Setup Python
+        if: inputs.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python deps
+        if: inputs.language == 'python'
+        run: pip install -r requirements.txt
+
+      - name: Pulumi ${{ inputs.command }}
+        uses: pulumi/actions@v6
+        with:
+          command: ${{ inputs.command }}
+          stack-name: ${{ inputs.stack-name }}
+          comment-on-pr: true
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

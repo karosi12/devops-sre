@@ -1,0 +1,68 @@
+name: Deploy development application to EKS
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: dev-eks-deployment
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: your-ecr-repository
+  EKS_CLUSTER: your-eks-cluster
+  K8S_NAMESPACE: default
+  K8S_DEPLOYMENT: your-deployment
+  K8S_CONTAINER: your-container-name
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="${GITHUB_SHA::12}"
+          IMAGE_URI="$REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG"
+          docker build --tag "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Configure kubectl for Amazon EKS
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+
+      - name: Deploy image to Amazon EKS
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          kubectl --namespace "$K8S_NAMESPACE" set image \
+            "deployment/$K8S_DEPLOYMENT" \
+            "$K8S_CONTAINER=$IMAGE_URI"
+          kubectl --namespace "$K8S_NAMESPACE" rollout status \
+            "deployment/$K8S_DEPLOYMENT" --timeout=5m

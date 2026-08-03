@@ -1,0 +1,200 @@
+name: CI/CD - Lint, Build & Push (Stage)
+
+# Triggers: push to `develop`/`stage` branch, or manual dispatch
+on:
+  push:
+    branches:
+      - develop
+      - stage
+
+  workflow_dispatch:
+    inputs:
+      push_ghcr:
+        description: 'Push to GitHub Container Registry'
+        type: boolean
+        default: true
+      push_dockerhub:
+        description: 'Push to Docker Hub'
+        type: boolean
+        default: true
+      push_ecr:
+        description: 'Push to Amazon ECR'
+        type: boolean
+        default: true
+
+env:
+  IMAGE_NAME: ${{ github.event.repository.name }}
+  AWS_REGION: us-east-1 # change to your region
+  ECR_REPOSITORY: ${{ github.event.repository.name }} # change to your ECR repository name
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  DOCKERHUB_REPOSITORY: ${{ vars.DOCKERHUB_USERNAME }}/${{ var.DOCKERHUB_REPOSITORY_NAME }} # change to your Docker Hub repository
+  GHCR_REPOSITORY: ghcr.io/${{ github.repository }}
+
+jobs:
+  # 1. Lint & Format check
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      # If Python instead of/alongside Node, uncomment:
+      # - name: Setup Python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.11'
+      # - name: Install Python deps
+      #   run: pip install -r requirements.txt --break-system-packages
+      # - name: Run flake8
+      #   run: flake8 .
+      # - name: Run black check
+      #   run: black --check .
+
+  # 2. Generate version tag (semver based on commit count/sha)
+  version:
+    name: Generate Version
+    needs: lint
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version
+        id: set_version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE_TAG=$(date +'%Y%m%d')
+          RUN_NUM=${{ github.run_number }}
+          VERSION="stage-${DATE_TAG}-${RUN_NUM}-${SHORT_SHA}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Generated version: $VERSION"
+
+  # 3. Build & Push Docker image to GHCR, Docker Hub, ECR
+  build-and-push:
+    name: Build & Push Docker Image
+    needs: [lint, version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # required for GHCR push
+      id-token: write   # required if using OIDC for AWS auth
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Resolve which registries to push to for this run.
+      # Push events always push to all three; workflow_dispatch respects the
+      # push_ghcr / push_dockerhub / push_ecr checkboxes.
+      - name: Resolve registry targets
+        id: targets
+        run: |
+          GHCR="${{ github.event_name != 'workflow_dispatch' || inputs.push_ghcr }}"
+          DOCKERHUB="${{ github.event_name != 'workflow_dispatch' || inputs.push_dockerhub }}"
+          ECR="${{ github.event_name != 'workflow_dispatch' || inputs.push_ecr }}"
+          echo "ghcr=$GHCR" >> "$GITHUB_OUTPUT"
+          echo "dockerhub=$DOCKERHUB" >> "$GITHUB_OUTPUT"
+          echo "ecr=$ECR" >> "$GITHUB_OUTPUT"
+          echo "Targets -> GHCR: $GHCR | Docker Hub: $DOCKERHUB | ECR: $ECR"
+
+      # --- GitHub Container Registry auth ---
+      - name: Login to GHCR
+        if: steps.targets.outputs.ghcr == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Docker Hub auth ---
+      - name: Login to Docker Hub
+        if: steps.targets.outputs.dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # --- AWS credentials (use OIDC role assumption; swap for access keys if needed) ---
+      - name: Configure AWS credentials
+        if: steps.targets.outputs.ecr == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: steps.targets.outputs.ecr == 'true'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        if: steps.targets.outputs.ecr == 'true'
+        run: |
+          aws ecr describe-repositories --repository-names "${{ env.ECR_REPOSITORY }}" \
+            || aws ecr create-repository --repository-name "${{ env.ECR_REPOSITORY }}"
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          TAGS=""
+          if [ "${{ steps.targets.outputs.ghcr }}" = "true" ]; then
+            TAGS="${TAGS}${{ env.GHCR_REPOSITORY }}:${{ needs.version.outputs.version }}"$'\n'
+            TAGS="${TAGS}${{ env.GHCR_REPOSITORY }}:stage-latest"$'\n'
+          fi
+          if [ "${{ steps.targets.outputs.dockerhub }}" = "true" ]; then
+            TAGS="${TAGS}${{ env.DOCKERHUB_REPOSITORY }}:${{ needs.version.outputs.version }}"$'\n'
+            TAGS="${TAGS}${{ env.DOCKERHUB_REPOSITORY }}:stage-latest"$'\n'
+          fi
+          if [ "${{ steps.targets.outputs.ecr }}" = "true" ]; then
+            TAGS="${TAGS}${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ needs.version.outputs.version }}"$'\n'
+            TAGS="${TAGS}${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:stage-latest"$'\n'
+          fi
+          if [ -z "$TAGS" ]; then
+            echo "::error::No registry selected — enable at least one of push_ghcr / push_dockerhub / push_ecr."
+            exit 1
+          fi
+          echo "tags<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$TAGS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            ENV=stage
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print pushed tags
+        run: |
+          echo "Pushed version: ${{ needs.version.outputs.version }}"
+          echo "Pushed to:"
+          echo "${{ steps.tags.outputs.tags }}"

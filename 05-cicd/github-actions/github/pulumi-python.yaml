@@ -1,0 +1,30 @@
+name: Pulumi
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    uses: <your-org>/<central-repo>/.github/workflows/pulumi-reusable.yml@main
+    with:
+      language: python
+      stack-name: your-org/your-project/dev
+      command: preview
+      aws-role-arn: arn:aws:iam::<ACCOUNT_ID>:role/pulumi-deploy-role
+    secrets:
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  up:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: <your-org>/<central-repo>/.github/workflows/pulumi-reusable.yml@main
+    with:
+      language: python
+      stack-name: your-org/your-project/dev
+      command: up
+      aws-role-arn: arn:aws:iam::<ACCOUNT_ID>:role/pulumi-deploy-role
+    secrets:
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

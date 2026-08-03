@@ -1,0 +1,12 @@
+name: Build and Deploy to Sandbox and PROD environments 🚀
+run-name: ${{ github.actor }} is about to build and ship project... 🚀
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+
+  build-production:
+    runs-on: [self-hosted, build]
