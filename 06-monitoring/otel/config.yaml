@@ -1,0 +1,33 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:    # OTLP gRPC receiver
+        endpoint: "0.0.0.0:4317"
+      http:    # OTLP HTTP receiver
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch: {}   # batch spans before exporting
+
+exporters:
+  # Print traces to collector stdout (replaces deprecated logging exporter)
+  debug: {}
+
+  # OTLP HTTP exporter to Tempo
+  otlphttp/tempo:
+    endpoint: "http://tempo:4318"
+    tls:
+      insecure: true
+
+  # OTLP HTTP exporter to Jaeger (optional; same pipeline = traces in both Tempo and Jaeger)
+  otlphttp/jaeger:
+    endpoint: "http://jaeger:4318"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, otlphttp/tempo, otlphttp/jaeger]

@@ -1,0 +1,29 @@
+groups:
+- name: system-alerts
+  rules:
+    - alert: ContainerHighCpuUtilization
+      expr: (sum(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (pod, container) / sum(container_spec_cpu_quota{container!=""}/container_spec_cpu_period{container!=""}) by (pod, container) * 100) > 70
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "ContainerHighCpuUtilization WARNING: Container High CPU usage ( {{ $labels.name }})"
+        description: "Container CPU utilization is above 70%\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+    - alert: ContainerHighMemoryUsage
+      expr: (sum(container_memory_working_set_bytes{name!=""}) BY (instance, name) / sum(container_spec_memory_limit_bytes > 0) BY (instance, name) * 100) > 80
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "ContainerHighMemoryUsage WARNING: Container High Memory usage ({{ $labels.name }})"
+        description: "Container Memory usage is above 70%\n  VALUE = {{ $value }}\n  LABELS = {{ $labels.name }}"
+
+    - alert: <service-name>ServiceDown
+      expr: up{job="<service-name>"} == 0
+      for: 30s
+      labels:
+        severity: critical
+      annotations:
+        summary: "<service-name>ServiceDown CRITICAL: <service-name> service is down ({{ $labels.name }})"
+        description: "<service-name> service is not responding\n  VALUE = {{ $value }}\n  LABELS = {{ $labels.name }}"

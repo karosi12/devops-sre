@@ -1,0 +1,112 @@
+# Alertmanager Configuration
+# Uses environment variables for sensitive credentials (see .env file)
+# Environment variables are referenced with ${VAR_NAME} syntax
+
+global:
+  resolve_timeout: 5m
+
+# Inhibit rules to prevent notification spam
+inhibit_rules:
+  # If a critical alert is firing, don't send warnings for the same resource
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal:
+      - alertname
+      - pod
+      - container
+      - namespace
+  # If a service is down, don't send resource alerts for it
+  - source_matchers:
+      - alertname="ServiceDown"
+    target_matchers:
+      - severity=~"warning|critical"
+    equal:
+      - instance
+      - job
+
+# Routing tree
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  receiver: default
+  group_by: ['alertname', 'cluster', 'service', 'severity', 'namespace']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  
+  routes:
+    # Critical alerts route to PagerDuty/Slack + Email immediately
+    - receiver: critical-pagerduty
+      matchers:
+        - severity="critical"
+      continue: true
+      group_wait: 10s
+      repeat_interval: 1h
+    
+    # Warning alerts route to Slack
+    - receiver: warning-slack
+      matchers:
+        - severity="warning"
+      continue: false
+      group_wait: 30s
+      repeat_interval: 4h
+    
+    # Platform team alerts
+    - receiver: platform-team
+      matchers:
+        - team="platform"
+        - notify="email-slack"
+      continue: true
+
+receivers:
+  - name: default
+
+  - name: critical-pagerduty
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/XXX/XXX/XXX'  # Replace with your actual Slack webhook URL
+        channel: '#incidents'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        title_link: "https://grafana.<your-domain>.com/alerts"
+        text: |
+          {{ range .Alerts }}
+          *{{ .Labels.severity | toUpper }}*: {{ .Annotations.summary }}
+          {{ .Annotations.message }}
+          {{ if .Annotations.description }}
+          ```
+          {{ .Annotations.description }}
+          ```
+          {{ end }}
+          {{ if .Annotations.runbook_url }}📋 Runbook: {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.dashboard }}📊 Dashboard: {{ .Annotations.dashboard }}{{ end }}
+          Started: {{ .StartsAt.Format "15:04:05" }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        send_resolved: true
+        actions:
+          - type: button
+            text: "View Dashboard"
+            url: "https://grafana.<your-domain>.com/d/container-resources"
+          - type: button
+            text: "Runbook"
+            url: '{{ (index .Alerts 0).Annotations.runbook_url }}'
+
+  - name: warning-slack
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/XXX/XXX/XXX'  # Replace with your actual Slack webhook URL
+        channel: '#incidents'
+        title: '⚠️ Warning: {{ .GroupLabels.alertname }}'
+        title_link: "https://grafana.<your-domain>.com/alerts"
+        text: |
+          {{ range .Alerts }}
+          *{{ .Labels.severity | toUpper }}*: {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ if .Annotations.runbook_url }}📋 Runbook: {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.dashboard }}📊 Dashboard: {{ .Annotations.dashboard }}{{ end }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
+        send_resolved: true
+
+  - name: platform-team

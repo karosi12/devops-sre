@@ -1,0 +1,55 @@
+# Promtail config: scrape Docker container logs and send to Loki.
+# <service-name> Service logs (logging_config.ts) are JSON: { timestamp, level, message, ...meta }
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    tenant_id: default
+
+scrape_configs:
+  # Discover containers via Docker socket; scrape stdout/stderr logs
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Log file path from container ID
+      - source_labels: [__meta_docker_container_id]
+        regex: '(.+)'
+        target_label: __path__
+        replacement: /var/lib/docker/containers/$1/$1-json.log
+      # Container name (e.g. /<service-name>-service) -> labels
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: container
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: job
+        replacement: $1
+    pipeline_stages:
+      # Unwrap Docker JSON: {"log":"...","stream":"stdout","time":"..."}
+      - docker: {}
+      # Use the extracted log line for next stages
+      - output:
+          source: output
+      # Parse <service-name> Service JSON: { timestamp, level, message, ... }
+      - json:
+          expressions:
+            level: level
+            message: message
+            timestamp: timestamp
+            service: service
+      # Promote to labels for filtering in Grafana
+      - labels:
+          level:
+          service:
+      # Use log timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339
