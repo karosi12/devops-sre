@@ -1,0 +1,259 @@
+name: CI/CD - Stage
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+
+  workflow_dispatch:
+    inputs:
+
+      registry:
+        description: "Container registry"
+        required: true
+        type: choice
+        options:
+          - ghcr
+          - dockerhub
+          - ecr
+          - all
+        default: ghcr
+
+      environment:
+        description: "Deployment environment"
+        required: true
+        type: choice
+        options:
+          - stage
+          - production
+        default: stage
+        
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  NODE_VERSION: "20"
+  APP_NAME: myapp
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+  DOCKERHUB_IMAGE: yourdockerhuborg/myapp # update this with your Docker Hub organization and repository
+  AWS_REGION: us-east-1 # update this with your AWS region
+  ECR_REPOSITORY: myapp # update this with your ECR repository name
+
+jobs:
+
+  # 1. LINT / FORMAT / BUILD
+  quality:
+    name: Lint / Format / Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint
+      - name: Lint
+        run: npm run lint
+
+      # Format
+      - name: Format check
+        run: npm run format:check
+
+      # Tests
+      - name: Unit tests
+        run: npm test -- --ci
+
+      # Application build
+      - name: Build application
+        run: npm run build
+
+
+  # 2. GENERATE VERSION
+  version:
+    name: Generate Image Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha_tag: ${{ steps.version.outputs.sha_tag }}
+      environment: ${{ steps.version.outputs.environment }}
+      registry: ${{ steps.version.outputs.registry }}
+
+    steps:
+
+      - name: Generate version
+        id: version
+        shell: bash
+        run: |
+
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            ENVIRONMENT="production"
+          elif [[ "${GITHUB_REF_NAME}" == "staging" ]]; then
+            ENVIRONMENT="stage"
+          else
+            ENVIRONMENT="stage"
+          fi
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            REGISTRY="${{ inputs.registry }}"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            REGISTRY="ecr"
+          elif [[ "${GITHUB_REF_NAME}" == "staging" ]]; then
+            REGISTRY="dockerhub"
+          else
+            REGISTRY="ghcr"
+          fi
+
+          VERSION="${ENVIRONMENT}-$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}"
+          SHA_TAG="sha-${GITHUB_SHA::7}"
+
+          echo "environment=${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
+          echo "registry=${REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+
+          echo ""
+          echo "========================================"
+          echo "Environment : ${ENVIRONMENT}"
+          echo "Registry    : ${REGISTRY}"
+          echo "Version     : ${VERSION}"
+          echo "SHA         : ${SHA_TAG}"
+
+  docker:
+    name: Build & Push Flask Docker Image
+    runs-on: ubuntu-latest
+    needs:
+      - quality
+      - version
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+
+        if: |
+          needs.version.outputs.registry == 'ghcr' ||
+          needs.version.outputs.registry == 'all'
+        uses: docker/login-action@v3
+        with:
+
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+
+        if: |
+          needs.version.outputs.registry == 'dockerhub' ||
+          needs.version.outputs.registry == 'all'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Configure AWS credentials
+
+        if: |
+          needs.version.outputs.registry == 'ecr' ||
+          needs.version.outputs.registry == 'all'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+
+        if: |
+          needs.version.outputs.registry == 'ecr' ||
+          needs.version.outputs.registry == 'all'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Generate Docker tags
+        id: tags
+        shell: bash
+        env:
+          REGISTRY: ${{ needs.version.outputs.registry }}
+          VERSION: ${{ needs.version.outputs.version }}
+          SHA_TAG: ${{ needs.version.outputs.sha_tag }}
+          GHCR_IMAGE: ${{ env.GHCR_IMAGE }}
+          DOCKERHUB_IMAGE: ${{ env.DOCKERHUB_IMAGE }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+
+        run: |
+          TAGS=""
+
+          if [[ "$REGISTRY" == "ghcr" || "$REGISTRY" == "all" ]]; then
+
+            TAGS="${TAGS}${GHCR_IMAGE}:${VERSION}"$'\n'
+
+            TAGS="${TAGS}${GHCR_IMAGE}:${SHA_TAG}"$'\n'
+
+            TAGS="${TAGS}${GHCR_IMAGE}:stage"$'\n'
+
+          fi
+
+          # Docker Hub
+
+          if [[ "$REGISTRY" == "dockerhub" || "$REGISTRY" == "all" ]]; then
+
+            TAGS="${TAGS}${DOCKERHUB_IMAGE}:${VERSION}"$'\n'
+
+            TAGS="${TAGS}${DOCKERHUB_IMAGE}:${SHA_TAG}"$'\n'
+
+            TAGS="${TAGS}${DOCKERHUB_IMAGE}:stage"$'\n'
+
+          fi
+
+          # ECR
+
+          if [[ "$REGISTRY" == "ecr" || "$REGISTRY" == "all" ]]; then
+
+            ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}"
+
+            TAGS="${TAGS}${ECR_IMAGE}:${VERSION}"$'\n'
+
+            TAGS="${TAGS}${ECR_IMAGE}:${SHA_TAG}"$'\n'
+
+            TAGS="${TAGS}${ECR_IMAGE}:production"$'\n'
+
+          fi
+
+          echo "Generated tags:"
+          echo "$TAGS"
+
+          {
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # BUILD + PUSH
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
