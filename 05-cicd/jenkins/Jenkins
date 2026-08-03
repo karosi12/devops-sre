@@ -1,0 +1,102 @@
+#!/usr/bin/env groovy
+
+def gv
+
+pipeline {
+    agent any
+
+    environment {
+        DEV_ENV_FILE     = 'dev.env'
+        STAGING_ENV_FILE = 'staging.env'
+        PROD_ENV_FILE    = 'prod.env'
+        IMAGE_TAG        = "${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+                script {
+                    gv = load 'script.groovy'
+                }
+            }
+        }
+
+        stage('Determine Target Environment') {
+            when {
+                anyOf { branch 'dev'; branch 'staging'; branch 'main' }
+            }
+            steps {
+                script {
+                    env.TARGET_ENV = (env.BRANCH_NAME == 'main') ? 'prod' : env.BRANCH_NAME
+                }
+            }
+        }
+
+        stage('Load Environment Variables') {
+            when {
+                anyOf { branch 'dev'; branch 'staging'; branch 'main' }
+            }
+            steps {
+                script {
+                    gv.loadEnvironmentVariables(env.TARGET_ENV)
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    gv.buildDockerImage()
+                }
+            }
+        }
+
+        stage('Push Docker Image to Container Registry') {
+            steps {
+                script {
+                    gv.pushDockerImageToContainerRegistry()
+                }
+            }
+        }
+
+        stage('Approve Production Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: "Deploy build ${env.IMAGE_TAG} to production?", ok: 'Deploy'
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf { branch 'dev'; branch 'staging'; branch 'main' }
+            }
+            steps {
+                script {
+                    gv.deployApplication(env.TARGET_ENV)
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                gv.removeLocalDockerImages()
+            }
+            cleanWs()
+        }
+        success {
+            script {
+                gv.notifySlack('success')
+            }
+        }
+        failure {
+            script {
+                gv.notifySlack('failure')
+            }
+        }
+    }
+}
