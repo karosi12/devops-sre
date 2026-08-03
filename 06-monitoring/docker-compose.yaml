@@ -1,0 +1,212 @@
+networks:
+  monitoring-net:
+    external: true   # use existing network
+
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    networks:
+      - monitoring-net
+    volumes:
+      - ./prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yaml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.external-url=/prometheus"
+    ports:
+      - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    networks:
+      - monitoring-net
+    env_file:
+      - ./grafana/.env
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    networks:
+      - monitoring-net
+    environment:
+      ALERTMANAGER_SLACK_WEBHOOK_URL: https://hooks.slack.com/services/xxx/xxx/xxx
+      ALERTMANAGER_SLACK_CHANNEL: '#incidents'
+      ALERTMANAGER_SLACK_USERNAME: 'Alertmanager'
+    env_file:
+      - ./alertmanager/.env
+    volumes:
+      - ./alertmanager/alertmanager.yaml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    networks:
+      - monitoring-net
+    ports:
+      - "9100:9100"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    networks:
+      - monitoring-net
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # rds-exporter:
+  #   image: public.ecr.aws/qonto/prometheus-rds-exporter:latest
+  #   container_name: rds-exporter
+  #   restart: always
+  #   ports:
+  #     - "9042:9042"
+  #   environment:
+  #     AWS_REGION: us-east-2
+  #     RDS_INSTANCE_IDENTIFIER: bellmonie-middleware-prod
+  #   volumes:
+  #     - ~/.aws:/root/.aws:ro
+  
+  blackbox-exporter:
+    image: prom/blackbox-exporter
+    container_name: blackbox-exporter
+    networks:
+      - monitoring-net
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yaml:/etc/blackbox_exporter/config.yml
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otel-collector
+    networks:
+      - monitoring-net
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel/config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4320:4317"   # OTLP gRPC (host:container) — use when app sends to collector from host
+      - "4321:4318"   # OTLP HTTP
+    depends_on:
+      - tempo
+      - jaeger   # so collector can push to both
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    networks:
+      - monitoring-net
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml
+      - tempo_data:/var/tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "3200:3200"   # Tempo HTTP API / Grafana datasource
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # Jaeger all-in-one: UI, collector (OTLP + Jaeger), in-memory storage
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    networks:
+      - monitoring-net
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"   # accept OTLP gRPC (4317) and HTTP (4318)
+      MEMORY_MAX_TRACES: "10000"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4322:4317"     # OTLP gRPC (host port 4322 to avoid conflict with Tempo)
+      - "4323:4318"     # OTLP HTTP
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    networks:
+      - monitoring-net
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    networks:
+      - monitoring-net
+    volumes:
+      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    depends_on:
+      - loki
+    # Run as root so it can read Docker container log files (or use same user as Docker daemon)
+    user: "0"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  tempo_data:
+  loki_data:

@@ -1,0 +1,48 @@
+modules:
+
+  # HTTP check (basic)
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: []
+      preferred_ip_protocol: ip4
+
+  # HTTPS check with SSL validation
+  https_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      fail_if_not_ssl: true
+      preferred_ip_protocol: ip4
+
+  # TCP check (PostgreSQL, Postgres, Redis, etc.)
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+
+  # Postgres specific TCP check
+  postgres_tcp:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      host: <your-host>.<region>.rds.amazonaws.com
+      port: 45877
+      preferred_ip_protocol: ip4
+
+  # ICMP ping check
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: ip4
+
+  # DNS check
+  dns_check:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "https://api.<your-domain>.com"
+      query_type: "A"

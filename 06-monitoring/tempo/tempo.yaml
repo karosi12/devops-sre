@@ -1,0 +1,40 @@
+# Grafana Tempo - OTLP HTTP receiver for traces from <service-name>-service and others.
+# See: https://grafana.com/docs/tempo/latest/configuration/
+
+server:
+  http_listen_port: 3200
+
+memberlist:
+  join_members: []
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: "0.0.0.0:4318"
+        grpc:
+          endpoint: "0.0.0.0:4317"
+
+ingester:
+  lifecycler:
+    ring:
+      replication_factor: 1
+      kvstore:
+        store: inmemory   # single-node: ingester registers in memory so querier can find it
+  trace_idle_period: 10s
+  max_block_bytes: 5_000_000
+  max_block_duration: 5m
+
+querier:
+  # Single-node: no separate query-frontend; omit frontend_worker to avoid connection/ring issues
+  # Single-node: avoid "empty partition ring" when querying live-store
+  query_live_store: false
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
