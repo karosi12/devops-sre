@@ -5,6 +5,34 @@ def buildDockerImage() {
     sh 'docker build -t $DOCKER_REGISTRY_URL/$IMAGE_REPOSITORY:$IMAGE_TAG .'
 }
 
+def scanFilesystem() {
+    echo 'Scanning source code, dependencies, secrets, and IaC with Trivy...'
+    sh '''
+        docker run --rm \
+          -v "$WORKSPACE:/src:ro" \
+          -w /src \
+          aquasec/trivy:0.67.2 fs \
+          --scanners vuln,secret,misconfig \
+          --severity HIGH,CRITICAL \
+          --ignore-unfixed \
+          --exit-code 1 \
+          .
+    '''
+}
+
+def scanDockerImage() {
+    echo "Scanning Docker image ${env.DOCKER_REGISTRY_URL}/${env.IMAGE_REPOSITORY}:${env.IMAGE_TAG} with Trivy..."
+    sh '''
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:0.67.2 image \
+          --severity HIGH,CRITICAL \
+          --ignore-unfixed \
+          --exit-code 1 \
+          "$DOCKER_REGISTRY_URL/$IMAGE_REPOSITORY:$IMAGE_TAG"
+    '''
+}
+
 def loadEnvironmentVariables(String targetEnv) {
     def envFileMap = [
         dev    : env.DEV_ENV_FILE,

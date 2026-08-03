@@ -36,14 +36,28 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build Docker image
+        id: image
         run: |
           IMAGE_TAG=${GITHUB_SHA::12}
           IMAGE_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
           docker build -t "$IMAGE_URI" .
-          docker push "$IMAGE_URI"
+
+      - name: Run Trivy image vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.image_uri }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
+
+      - name: Push Docker image
+        run: docker push "${{ steps.image.outputs.image_uri }}"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -53,7 +67,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -euo pipefail
-            IMAGE_URI="${{ env.IMAGE_URI }}"
+            IMAGE_URI="${{ steps.image.outputs.image_uri }}"
             CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
             HOST_PORT="${{ env.HOST_PORT }}"
             CONTAINER_PORT="${{ env.CONTAINER_PORT }}"

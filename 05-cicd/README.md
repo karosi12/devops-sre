@@ -6,8 +6,8 @@ Examples for continuous integration, container-image publishing, and application
 
 | Area | Contents | Start here |
 | --- | --- | --- |
-| Jenkins | A custom Jenkins controller image, a Docker launcher, a branch-aware declarative pipeline, and shared Groovy deployment helpers. The pipeline builds an image, publishes it to a registry, deploys it over SSH, and notifies Slack. | [Jenkins guide](jenkins/Readme.md) |
-| GitHub Actions | Templates for EC2, ECS, EKS, multi-registry Node/Flask builds, and reusable Pulumi workflows for Python and Node.js. | [GitHub Actions guide](github-actions/github/Readme.md) |
+| Jenkins | A custom Jenkins controller image, a Docker launcher, a branch-aware declarative pipeline, and shared Groovy deployment helpers. The pipeline runs Trivy source/image scans, builds an image, publishes it to a registry, deploys it over SSH, and notifies Slack. | [Jenkins guide](jenkins/Readme.md) |
+| GitHub Actions | Templates for EC2, ECS, EKS, multi-registry Node/Flask builds, and reusable Pulumi workflows for Python and Node.js. Docker and Node/Python templates run Trivy scans. | [GitHub Actions guide](github-actions/github/Readme.md) |
 | Self-hosted runner | A starter workflow that targets a runner with the `self-hosted` and `build` labels. | `github-actions/self-hosted/self-host-runner.yml` |
 
 ## Structure

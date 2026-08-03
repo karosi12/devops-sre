@@ -1,6 +1,6 @@
 # GitHub Actions workflow examples
 
-This directory contains independent GitHub Actions templates for building a container image, deploying it to AWS, and running Pulumi Infrastructure as Code (IaC). Choose the workflow that matches the deployment target; do not enable multiple deployment templates for the same branch unless that is intentional.
+This directory contains independent GitHub Actions templates for building a container image, deploying it to AWS, and running Pulumi Infrastructure as Code (IaC). Choose the workflow that matches the deployment target; do not enable multiple deployment templates for the same branch unless that is intentional. The Docker and Node/Python templates include Trivy vulnerability scanning and block on fixed `HIGH` or `CRITICAL` findings.
 
 ## Before you start
 
@@ -36,7 +36,7 @@ Set `ECR_REPOSITORY`, `CONTAINER_NAME`, `HOST_PORT`, and `CONTAINER_PORT`. Creat
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_REGION` (or, preferably, change the workflow to use `AWS_GITHUB_ACTIONS_ROLE_ARN` with OIDC).
 - `EC2_HOST`, `EC2_USER`, and `EC2_SSH_KEY`.
 
-The target host must have Docker installed and the EC2 user must be able to run Docker. A push builds an image tagged with the first 12 characters of the commit SHA, pushes it to ECR, pulls that immutable tag on the host, removes the current named container, and starts the replacement. Use `dev-ec2.yaml` for `dev`; use `prod.yaml` for `main` only after adding GitHub environment protection and a health check/rollback strategy.
+The target host must have Docker installed and the EC2 user must be able to run Docker. A push builds an image tagged with the first 12 characters of the commit SHA, scans it with Trivy, pushes it to ECR only if there are no fixed `HIGH` or `CRITICAL` findings, pulls that immutable tag on the host, removes the current named container, and starts the replacement. Use `dev-ec2.yaml` for `dev`; use `prod.yaml` for `main` only after adding GitHub environment protection and a health check/rollback strategy.
 
 **Required fix before use:** the SSH script reads `${{ env.IMAGE_URI }}`, but `IMAGE_URI` is written to `GITHUB_ENV` during the preceding step and is not available through the expression context. Export it as a step output from the build step and pass `${{ steps.<build-step-id>.outputs.image_uri }}` to the SSH action (or compute the image URI again inside that script). Apply the same correction to both templates.
 
@@ -44,19 +44,19 @@ The target host must have Docker installed and the EC2 user must be able to run 
 
 Update `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, `ECS_TASK_DEFINITION`, and `CONTAINER_NAME`. Commit the ECS task definition JSON at the configured path; its container definition name must exactly match `CONTAINER_NAME`.
 
-Add AWS credentials as described above. The workflow serializes development deployments through its `concurrency` group, pushes an immutable SHA tag, updates the task definition image, and waits for the service to stabilize. The IAM principal needs ECR push access plus ECS task-definition registration, service update, and `iam:PassRole` permissions for the task roles.
+Add AWS credentials as described above. The workflow serializes development deployments through its `concurrency` group, scans the locally built immutable SHA-tagged image with Trivy before pushing it, updates the task definition image, and waits for the service to stabilize. The IAM principal needs ECR push access plus ECS task-definition registration, service update, and `iam:PassRole` permissions for the task roles.
 
 ## EKS workflow: `dev-k8s.yaml`
 
 Update `ECR_REPOSITORY`, `EKS_CLUSTER`, `K8S_NAMESPACE`, `K8S_DEPLOYMENT`, and `K8S_CONTAINER`. The deployment and container must already exist in the cluster. Configure AWS credentials with access to the EKS cluster and ensure the IAM role is authorized by EKS access entries or Kubernetes RBAC.
 
-On a `dev` push, the workflow pushes a SHA-tagged ECR image, runs `kubectl set image`, and waits up to five minutes for the rollout. Add `kubectl rollout undo` or a deployment controller if automatic rollback is required.
+On a `dev` push, the workflow scans a SHA-tagged ECR image with Trivy before pushing it, runs `kubectl set image`, and waits up to five minutes for the rollout. Add `kubectl rollout undo` or a deployment controller if automatic rollback is required.
 
 ## Registry publishing workflows
 
 ### `ci-cd-stage-nodejs.yaml`
 
-This template requires `package-lock.json` and these package scripts: `lint`, `format:check`, `test`, and `build`. Set `APP_NAME`, `DOCKERHUB_IMAGE`, `AWS_REGION`, and `ECR_REPOSITORY`. Add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_GITHUB_ACTIONS_ROLE_ARN` secrets as applicable.
+This template requires `package-lock.json` and these package scripts: `lint`, `format:check`, `test`, and `build`. A Trivy filesystem scan runs before linting and blocks fixed `HIGH`/`CRITICAL` dependency, secret, or IaC findings. Set `APP_NAME`, `DOCKERHUB_IMAGE`, `AWS_REGION`, and `ECR_REPOSITORY`. Add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_GITHUB_ACTIONS_ROLE_ARN` secrets as applicable.
 
 The registry is selected automatically: `develop` uses GHCR and `staging` uses Docker Hub. A manual run can choose `ghcr`, `dockerhub`, `ecr`, or `all`. The `environment` input is currently not used; alter the version job if manual runs need to choose the image environment.
 
@@ -64,13 +64,13 @@ The registry is selected automatically: `develop` uses GHCR and `staging` uses D
 
 ### `ci-cd-stage-flask-api.yaml`
 
-This template expects `requirements.txt`, Ruff, pytest, and pytest-cov to be installed (typically through `requirements-dev.txt`). Set `DOCKERHUB_IMAGE`, `AWS_REGION`, and `ECR_REPOSITORY`, then add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_GITHUB_ACTIONS_ROLE_ARN` as needed.
+This template expects `requirements.txt`, Ruff, pytest, and pytest-cov to be installed (typically through `requirements-dev.txt`). A Trivy filesystem scan runs before linting and blocks fixed `HIGH`/`CRITICAL` dependency, secret, or IaC findings. Set `DOCKERHUB_IMAGE`, `AWS_REGION`, and `ECR_REPOSITORY`, then add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_GITHUB_ACTIONS_ROLE_ARN` as needed.
 
 Pull requests run quality checks but also continue to the image-publishing jobs. For secure repositories, make publishing conditional on `github.event_name != 'pull_request'`; otherwise PRs—especially from trusted same-repository branches—may publish images. As with the Node template, the manual `environment` input is not consumed, so branch logic determines the tag environment.
 
 ### `ci-cd-ts-py.yaml`
 
-Set `AWS_REGION`, `ECR_REPOSITORY`, and the Docker Hub repository. Add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_ROLE_ARN` secrets. Manual runs expose three checkboxes to select registry targets; pushed commits publish to all three.
+Set `AWS_REGION`, `ECR_REPOSITORY`, and the Docker Hub repository. A Trivy filesystem scan runs before linting and blocks fixed `HIGH`/`CRITICAL` dependency, secret, or IaC findings. Add `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, and `AWS_ROLE_ARN` secrets. Manual runs expose three checkboxes to select registry targets; pushed commits publish to all three.
 
 **Required fix before use:** correct `DOCKERHUB_REPOSITORY` to use `vars`, not `var`:
 
