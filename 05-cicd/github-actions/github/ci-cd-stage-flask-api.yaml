@@ -72,6 +72,16 @@ jobs:
             pip install -r requirements-dev.txt
           fi
 
+      - name: Run Trivy filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
       - name: Ruff lint
         run: |
           ruff check .
@@ -265,4 +275,3 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          

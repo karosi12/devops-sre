@@ -39,7 +39,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build Docker image
         id: image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -48,8 +48,20 @@ jobs:
           IMAGE_TAG="${GITHUB_SHA::12}"
           IMAGE_URI="$REGISTRY/${ECR_REPOSITORY}:$IMAGE_TAG"
           docker build --tag "$IMAGE_URI" .
-          docker push "$IMAGE_URI"
           echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Run Trivy image vulnerability scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.image }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: '1'
+
+      - name: Push Docker image
+        run: docker push "${{ steps.image.outputs.image }}"
 
       - name: Configure kubectl for Amazon EKS
         run: |

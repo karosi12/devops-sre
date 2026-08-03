@@ -47,7 +47,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
+                    gv.scanFilesystem()
                     gv.buildDockerImage()
+                    gv.scanDockerImage()
                 }
             }
         }

@@ -16,8 +16,8 @@ Other branches still run the build and push stages, but do not load an environme
 | --- | --- |
 | `Dockerfile` | Builds a Jenkins LTS (JDK 21) controller image with Git, Docker CLI, AWS CLI v2 (in a Python virtual environment), Node.js 20, and common utilities. |
 | `jenkins-docker-aws.sh` | Builds the custom controller image and starts Jenkins with persistent data and access to the host Docker daemon. |
-| `Jenkins` | Declarative Jenkinsfile for checkout, image build/push, branch-aware deployment, cleanup, and Slack notification. Copy or rename it to `Jenkinsfile` in the application repository. |
-| `script.groovy` | Helper functions loaded by the Jenkinsfile: environment-file loading, Docker operations, SSH deployment, cleanup, and Slack notification. Keep it beside the Jenkinsfile in the application repository. |
+| `Jenkins` | Declarative Jenkinsfile for checkout, Trivy scanning, image build/push, branch-aware deployment, cleanup, and Slack notification. Copy or rename it to `Jenkinsfile` in the application repository. |
+| `script.groovy` | Helper functions loaded by the Jenkinsfile: environment-file loading, Trivy filesystem/image scanning, Docker operations, SSH deployment, cleanup, and Slack notification. Keep it beside the Jenkinsfile in the application repository. |
 
 ## Start Jenkins locally or on a Linux host
 
@@ -88,7 +88,7 @@ Keep non-secret deployment values in these files only if they are appropriate fo
 
 ## Pipeline behavior
 
-The pipeline checks out the source, loads `script.groovy`, selects the target environment, reads that environment's properties file, and tags the container image with Jenkins’ `BUILD_NUMBER`. It pushes the image using:
+The pipeline checks out the source, loads `script.groovy`, selects the target environment, reads that environment's properties file, and tags the container image with Jenkins’ `BUILD_NUMBER`. Before it can push an image, Trivy scans the repository (dependencies, secrets, and IaC) and the locally built Docker image. Unfixed findings are ignored, but any fixed `HIGH` or `CRITICAL` finding fails the build. It pushes the image using:
 
 ```text
 $DOCKER_REGISTRY_URL/$IMAGE_REPOSITORY:$BUILD_NUMBER
