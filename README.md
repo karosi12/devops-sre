@@ -13,7 +13,8 @@ It is designed for hands-on study: each numbered directory is an independent mod
 | [01-docker](01-docker/) | Container fundamentals | Dockerfiles, multi-stage builds, networks, volumes, Compose | [Module guide](01-docker/README.md) |
 | [02-kubernetes](02-kubernetes/) | Container orchestration | Manifests, workloads, services, storage, ingress, Helm | [Module guide](02-kubernetes/README.md) |
 | [03-terraform](03-terraform/) | Declarative AWS IaC | EC2, VPC, ECS, RDS, Lambda, ElastiCache, messaging | [Module guide](03-terraform/README.md) |
-| [04-pulumi-ts](04-pulumi-ts/) | Programmatic AWS IaC | TypeScript components, resources, stacks, shared config | [Module guide](04-pulumi-ts/README.md) |
+| [04-pulumi-ts](04-pulumi-ts/) | Programmatic AWS IaC (TypeScript) | TypeScript components, resources, stacks, shared config | [Module guide](04-pulumi-ts/README.md) |
+| [04-pulumi-py](04-pulumi-py/) | Programmatic AWS IaC (Python) | Component-based VPC, EKS, and RDS with IAM roles | [Module guide](04-pulumi-py/README.md) |
 | [05-cicd](05-cicd/) | Continuous delivery | Jenkins, GitHub Actions, deployment templates, runners | [Module guide](05-cicd/README.md) |
 | [06-monitoring](06-monitoring/) | Observability | Prometheus, Grafana, Loki, Tempo, OpenTelemetry, Alertmanager | [Stack configuration](06-monitoring/docker-compose.yaml) |
 | [07-ansible](07-ansible/) | Configuration automation | Inventory, playbooks, roles, templates, handlers | [Module guide](07-ansible/README.md) |
@@ -21,7 +22,7 @@ It is designed for hands-on study: each numbered directory is an independent mod
 | [09-database](09-database/) | Data-layer learning | SQL and NoSQL notes and exercises | [SQL notes](09-database/sql/note.md) |
 | [10-serverless](10-serverless/) | Event-driven/serverless patterns | Serverless learning assets | [Module folder](10-serverless/) |
 
-`08-frontend/` and `04-pulumi-py/` are reserved areas for future frontend and Python Pulumi material. The TypeScript Pulumi implementation lives in `04-pulumi-ts/`.
+`08-frontend/` is a reserved area for future frontend material. Both Python Pulumi implementation (`04-pulumi-py/`) and TypeScript Pulumi implementation (`04-pulumi-ts/`) are now available.
 
 ## What you will practice
 
