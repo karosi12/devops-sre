@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 
 # Pulumi
-Pulumi.*.yaml
+# Pulumi.*.yaml
 Pulumi.*.yml
 *.stack
 
@@ -44,3 +44,9 @@ build/
 02-kubernetes/01-k8s/.env
 03-terraform/ec2/terraform.tfvars
 04-pulumi/docs/social-content-ec2-vpc.md
+05-cicd/github-actions/github/note.md
+06-monitoring/.env
+06-monitoring/alertmanager/.env
+06-monitoring/grafana/.env
+08-backend/python-fastapi/.env
+08-backend/event-driven/Screenshot from 2026-06-29 18-40-44.png

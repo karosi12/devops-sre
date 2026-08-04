@@ -1,202 +1,215 @@
-# DevOps Learning Monorepo
+# Cloud-Native Engineering Learning Lab
 
-A comprehensive DevOps curriculum for engineers covering infrastructure as code, containers, orchestration, CI/CD, monitoring, and backend development.
+An applied DevOps learning workspace for building, shipping, operating, and observing cloud-native services. The repository progresses from containers and Kubernetes to infrastructure as code, delivery automation, observability, configuration management, backend services, data, and serverless patterns.
 
-## Quick Navigation
+It is designed for hands-on study: each numbered directory is an independent module with examples that can be adapted to a sandbox AWS account, local Docker environment, or Kubernetes cluster.
 
-| Module | Description |
-|--------|-------------|
-| [01-docker](01-docker/) | Container fundamentals with Docker |
-| [02-kubernetes](02-kubernetes/) | K8s orchestration |
-| [03-terraform](03-terraform/) | Terraform IaC for AWS |
-| [04-pulumi](04-pulumi/) | Pulumi TypeScript IaC |
-| [05-cicd](05-cicd/) | CI/CD pipelines |
-| [06-monitoring](06-monitoring/) | Observability stack |
-| [07-ansible](07-ansible/) | Configuration management |
-| [08-backend](08-backend/) | Backend services |
+> **Cloud-cost and security notice:** Infrastructure examples can create billable AWS resources. Review every plan before applying it, use a non-production account, scope IAM permissions tightly, and destroy resources when finished. Never commit credentials, tokens, passwords, state files containing secrets, or environment files.
 
----
+## Repository map
 
-## Module Overview
+| Module | Focus | Key material | Start here |
+| --- | --- | --- | --- |
+| [01-docker](01-docker/) | Container fundamentals | Dockerfiles, multi-stage builds, networks, volumes, Compose | [Module guide](01-docker/README.md) |
+| [02-kubernetes](02-kubernetes/) | Container orchestration | Manifests, workloads, services, storage, ingress, Helm | [Module guide](02-kubernetes/README.md) |
+| [03-terraform](03-terraform/) | Declarative AWS IaC | EC2, VPC, ECS, RDS, Lambda, ElastiCache, messaging | [Module guide](03-terraform/README.md) |
+| [04-pulumi-ts](04-pulumi-ts/) | Programmatic AWS IaC | TypeScript components, resources, stacks, shared config | [Module guide](04-pulumi-ts/README.md) |
+| [05-cicd](05-cicd/) | Continuous delivery | Jenkins, GitHub Actions, deployment templates, runners | [Module guide](05-cicd/README.md) |
+| [06-monitoring](06-monitoring/) | Observability | Prometheus, Grafana, Loki, Tempo, OpenTelemetry, Alertmanager | [Stack configuration](06-monitoring/docker-compose.yaml) |
+| [07-ansible](07-ansible/) | Configuration automation | Inventory, playbooks, roles, templates, handlers | [Module guide](07-ansible/README.md) |
+| [08-backend](08-backend/) | Deployable services | Node/Express and Python/FastAPI APIs | [Module guide](08-backend/README.md) |
+| [09-database](09-database/) | Data-layer learning | SQL and NoSQL notes and exercises | [SQL notes](09-database/sql/note.md) |
+| [10-serverless](10-serverless/) | Event-driven/serverless patterns | Serverless learning assets | [Module folder](10-serverless/) |
 
-### [01 - Docker](01-docker/)
-**Purpose:** Learn containerization fundamentals
+`08-frontend/` and `04-pulumi-py/` are reserved areas for future frontend and Python Pulumi material. The TypeScript Pulumi implementation lives in `04-pulumi-ts/`.
 
-Containerize applications using Docker. Build images, manage networks/volumes, and orchestrate multi-container apps with docker-compose.
+## What you will practice
 
-**Topics:** Dockerfile syntax, multi-stage builds, Docker networking, volumes, docker-compose
+```text
+Application code
+  └─> Docker image
+       └─> CI validation and registry publication
+            └─> Kubernetes / ECS / serverless deployment
+                 └─> Metrics, logs, traces, alerts
 
-**Start:** [README](01-docker/README.md)
-
----
-
-### [02 - Kubernetes](02-kubernetes/)
-**Purpose:** Container orchestration and certification prep
-
-Deploy, scale, and manage containerized applications in production using Kubernetes.
-
-**Topics:** Pods, Deployments, Services, ConfigMaps, Secrets, Ingress, Helm
-
-**Start:** [README](02-kubernetes/README.md)
-
----
-
-### [03 - Terraform](03-terraform/)
-**Purpose:** Infrastructure as Code with Terraform
-
-Provision and manage cloud infrastructure on AWS using declarative Terraform configurations.
-
-**Projects:**
-- `ec2/` - Single EC2 instance provisioning
-- `vpc/` - VPC with public/private subnets
-- `ecs/` - Container orchestration with ECS Fargate
-- `rds/` - Managed PostgreSQL databases
-- `lambda/` - Serverless function deployment
-- `elasticache/` - Redis cache clusters
-- `message_broker/` - SQS/SNS messaging
-
-**Start:** [README](03-terraform/README.md)
-
----
-
-### [04 - Pulumi](04-pulumi/)
-**Purpose:** Modern IaC with TypeScript
-
-Define cloud infrastructure using familiar programming languages with Pulumi's TypeScript SDK.
-
-**Topics:** Pulumi components, AWS resources, stack configurations, state management
-
-**Start:** [README](04-pulumi/README.md)
-
----
-
-### [05 - CI/CD](05-cicd/)
-**Purpose:** Automate your deployment pipeline
-
-Build continuous integration and continuous deployment pipelines using industry-standard tools.
-
-**Structure:**
-- `jenkins/` - Jenkins server setup and pipeline examples
-  - `base/` - Basic Jenkins Docker setup
-  - `abstract/` - Pipeline templates
-- `github-actions/` - GitHub Actions workflows
-  - `github/` - Dev/staging/prod workflows
-  - `self-hosted/` - Self-hosted runner configuration
-
-**Start:** [README](05-cicd/README.md)
-
----
-
-### [06 - Monitoring](06-monitoring/)
-**Purpose:** Observability and incident response
-
-Implement full-stack observability: metrics, logs, and distributed tracing.
-
-**Tools:** Prometheus, Grafana, Loki, Promtail, Tempo, Jaeger, Alertmanager
-
-**Structure:**
-- `prometheus/` - Metrics collection and exporters
-- `grafana-stack/` - Dashboard templates
-- `loki/` - Log aggregation
-- `promtail/` - Log shipping
-- `tempo/` - Distributed tracing backend
-- `otel/` - OpenTelemetry configuration
-
-**Start:** [README](06-monitoring/README.md)
-
----
-
-### [07 - Ansible](07-ansible/)
-**Purpose:** Configuration management and automation
-
-Automate server configuration, deployment, and infrastructure management with Ansible.
-
-**Topics:** Playbooks, roles, inventory, templates, handlers
-
-**Start:** [README](07-ansible/README.md)
-
----
-
-### [08 - Backend](08-backend/)
-**Purpose:** Backend services for full-stack DevOps
-
-Production-ready backend APIs in multiple languages, containerized and CI/CD integrated.
-
-**[Node.js/Express](08-backend/nodejs-express/)** - TypeScript REST API
-- Express.js with TypeScript
-- PostgreSQL integration
-- Jest testing
-- Docker & Jenkins CI/CD
-
-**[Python/FastAPI](08-backend/python-fastapi/)** - Async Python API
-- FastAPI with Pydantic
-- SQLAlchemy ORM
-- Prometheus metrics
-- OpenTelemetry tracing
-
-**Start:** [README](08-backend/README.md)
-
----
-
-## Learning Paths
-
-### Path 1: DevOps Engineer
-```
-01-docker → 02-kubernetes → 05-cicd → 06-monitoring
+Infrastructure as code (Terraform or Pulumi)
+  └─> Network, identity, compute, data, and messaging foundations
+       └─> Versioned review, plan/preview, controlled apply, teardown
 ```
 
-### Path 2: Infrastructure Engineer
-```
-03-terraform → 04-pulumi → 05-cicd
+The modules are intentionally complementary. Docker and backend examples provide deployable workloads; Terraform and Pulumi provision the platform; CI/CD automates the path to an environment; monitoring closes the feedback loop; and Ansible supports host-level configuration where it is still required.
+
+## Recommended learning paths
+
+### Core DevOps path
+
+```text
+01 Docker → 02 Kubernetes → 05 CI/CD → 06 Monitoring → 07 Ansible
 ```
 
-### Path 3: Platform Engineer
-```
-01-docker → 02-kubernetes → 03-terraform → 04-pulumi → 05-cicd → 06-monitoring
+Use this path to learn how an application moves from a container image to a deployed, observable service.
+
+### Cloud infrastructure path
+
+```text
+03 Terraform → 04 Pulumi TypeScript → 05 CI/CD → 06 Monitoring
 ```
 
-### Path 4: Full-Stack DevOps
-```
-08-backend/nodejs-express or 08-backend/python-fastapi
-→ 01-docker → 05-cicd → 06-monitoring
+Start with Terraform’s declarative workflow, then implement reusable platform components in Pulumi. Treat them as alternative IaC approaches for the same class of problem—not tools that should manage the same resources simultaneously.
+
+### Platform Engineer path
+
+```text
+01 Docker → 02 Kubernetes → 03 Terraform or 04 Pulumi TypeScript
+→ 05 CI/CD → 06 Monitoring → 07 Ansible
 ```
 
----
+Follow this path to build a self-service platform foundation: standardized workloads, reusable infrastructure, automated delivery, observability, and host configuration where needed.
+
+### Full-stack platform path
+
+```text
+08 Backend → 01 Docker → 03 Terraform or 04 Pulumi → 02 Kubernetes
+→ 05 CI/CD → 06 Monitoring → 09 Database → 10 Serverless
+```
+
+This sequence is useful for building an end-to-end portfolio project: an API, its image, its infrastructure, delivery pipeline, observability, and supporting data/event capabilities.
 
 ## Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Docker | Latest | Containerization |
-| Docker Compose | Latest | Multi-container apps |
-| AWS CLI | v2 | AWS cloud access |
-| Terraform | >= 1.0 | IaC provisioning |
-| Pulumi | Latest | Modern IaC |
-| kubectl | Latest | Kubernetes management |
-| Node.js | >= 18 | Backend development |
-| Python | >= 3.10 | Backend development |
+Install only the tools needed for the module you are currently running.
 
----
+| Tool | Typical use |
+| --- | --- |
+| Git | Clone, branch, and review changes |
+| Docker Engine and Docker Compose plugin | Local images and multi-container stacks |
+| Node.js 18+ and npm | Pulumi TypeScript and Node backend projects |
+| Python 3.10+ and pip | FastAPI and Python tooling |
+| kubectl and a local or managed Kubernetes cluster | Kubernetes manifests and Helm exercises |
+| Helm | Kubernetes package-management exercises |
+| Terraform 1.x | Terraform modules |
+| Pulumi CLI | Pulumi stack preview and deployment |
+| AWS CLI v2 | AWS identity verification and service access |
+| Ansible | Configuration-management exercises |
 
-## Getting Started
+For AWS work, authenticate through a named profile, IAM Identity Center, or a short-lived role. Before running an IaC command, verify which account is active:
 
 ```bash
-# Clone the repo
+aws sts get-caller-identity
+```
+
+## Quick start
+
+```bash
 git clone https://github.com/karosi12/devops.git
 cd devops
 
-# Choose your learning path
+# Begin with a local, low-risk module.
 cd 01-docker
-
-# Follow the module README
-cat README.md
 ```
 
----
+Read the selected module README before executing its examples. For a practical first workflow, choose an API in `08-backend/`, build it with Docker, then use the CI/CD and monitoring modules to understand its operational lifecycle.
+
+## Common workflows
+
+### Local containers
+
+```bash
+cd 01-docker/docker-compose
+docker compose up --build
+docker compose down
+```
+
+Use `docker compose config` first to inspect the resolved configuration. Use `docker compose down -v` only when you intentionally want to delete local volumes and their data.
+
+### Kubernetes manifests
+
+```bash
+cd 02-kubernetes
+kubectl config current-context
+kubectl apply -f pvc-pv.yaml
+kubectl get pods,svc,pvc
+```
+
+Confirm the active context before applying resources. In shared clusters, use a dedicated namespace and label every resource consistently.
+
+### Terraform
+
+```bash
+cd 03-terraform/<module>
+terraform init
+terraform fmt -check
+terraform validate
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+Create local `terraform.tfvars` files from the module’s documented inputs; they are deliberately excluded from version control. Review the plan for destructive replacements, public exposure, overly broad security groups, and unexpected costs. When the exercise is complete, run `terraform destroy` only after reviewing its plan.
+
+### Pulumi TypeScript
+
+```bash
+cd 04-pulumi-ts
+npm ci
+pulumi stack select <stack-name>
+pulumi preview
+pulumi up
+```
+
+Keep each environment in a separate stack and configure secrets with `pulumi config set --secret`. Do not place plaintext credentials in source files or stack configuration committed to Git.
+
+### CI/CD templates
+
+The Jenkins and GitHub Actions files are templates, not a turnkey production deployment. Copy a workflow into the target repository, replace placeholders, configure secrets and environment protection rules, and grant only the IAM permissions the deployment requires. Prefer GitHub Actions OIDC to long-lived AWS access keys.
+
+See the [Jenkins guide](05-cicd/jenkins/Readme.md) and [GitHub Actions guide](05-cicd/github-actions/github/Readme.md) for setup details.
+
+### Observability stack
+
+```bash
+cd 06-monitoring
+docker compose up -d
+docker compose ps
+docker compose logs -f
+```
+
+The stack configuration connects metrics, logs, traces, dashboards, and alerting. Review local `.env` values before startup and treat them as sensitive if they contain credentials. Stop the stack with `docker compose down` when finished.
+
+## Engineering conventions
+
+- Keep secrets out of Git: use `.env` files, secret managers, CI secret stores, and Pulumi encrypted configuration as appropriate.
+- Pin meaningful versions for images, actions, providers, and dependencies; avoid relying on floating `latest` tags in deployment workflows.
+- Use immutable image tags such as a commit SHA, not only a mutable release tag.
+- Validate before deploying: format, lint, test, build, run IaC validation, and inspect plans/previews.
+- Separate development, staging, and production by account, stack, namespace, or at minimum explicit configuration boundaries.
+- Prefer least-privilege IAM roles, protected branches, required reviews, and environment approvals for production changes.
+- Tag cloud resources with owner, service, environment, and cost-center metadata so they can be discovered and cleaned up.
+- Make services observable by exposing structured logs, metrics, health checks, and traces before declaring an environment ready.
+
+## Safe cleanup checklist
+
+After completing a cloud exercise:
+
+1. Review and destroy resources with the same IaC tool that created them.
+2. Verify no test load balancers, databases, snapshots, elastic IPs, or container registries remain unexpectedly.
+3. Revoke temporary credentials and delete local secrets or credentials files that are no longer needed.
+4. Check the cloud cost dashboard over the following days for delayed charges.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+Contributions should keep examples reproducible and safe to run.
+
+1. Create a focused branch.
+2. Add or update the relevant module documentation with prerequisites, inputs, expected outputs, and cleanup steps.
+3. Run the appropriate formatter, linter, tests, and IaC validation for the changed module.
+4. Do not add real credentials, private endpoints, generated state, or large build artifacts.
+5. Open a pull request describing the learning outcome and how you verified the change.
+
+## Further reading in this repository
+
+- [Docker fundamentals](01-docker/README.md)
+- [Kubernetes exercises](02-kubernetes/README.md)
+- [Terraform AWS modules](03-terraform/README.md)
+- [Pulumi platform components](04-pulumi-ts/README.md)
+- [CI/CD examples](05-cicd/README.md)
+- [Backend services](08-backend/README.md)
