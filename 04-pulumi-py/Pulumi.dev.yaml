@@ -1,0 +1,9 @@
+config:
+  aws:region: us-east-1
+  04-pulumi-py:environment: dev
+  04-pulumi-py:dbPassword:
+    secure: AAABAJLh0H69tSwEVijett8zPAXNZ40CpUa2xZSHM1n0rlVyz320GktCxA==
+  04-pulumi-py:eks_role_arn: arn:aws:iam::123456789012:role/eks-role
+  04-pulumi-py:rds_username: admin
+  04-pulumi-py:rds_password:
+    secure: AAABAB40ScU6nh7ggqheFRVkmZpyxC3RHClC6C5R9FtELZss+4OAksp0HASc5VOuexCM

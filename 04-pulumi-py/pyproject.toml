@@ -1,0 +1,8 @@
+[project]
+name = "04-pulumi-py"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pulumi>=3.0.0,<4.0.0",
+    "pulumi-aws>=7.40.0",
+]
