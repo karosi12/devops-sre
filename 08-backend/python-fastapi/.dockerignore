@@ -1,0 +1,23 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+env
+
+# Local config (do not copy into image)
+.env
+.python-version
+
+# Development / tooling (not needed for build)
+*.md
+pyproject.toml
+uv.lock
+setup.sh
