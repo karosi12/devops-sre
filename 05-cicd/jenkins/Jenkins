@@ -28,14 +28,14 @@ pipeline {
             }
             steps {
                 script {
-                    env.TARGET_ENV = (env.BRANCH_NAME == 'main') ? 'prod' : env.BRANCH_NAME
+                    env.TARGET_ENV = (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') ? 'prod' : env.BRANCH_NAME
                 }
             }
         }
 
         stage('Load Environment Variables') {
             when {
-                anyOf { branch 'dev'; branch 'staging'; branch 'main' }
+                anyOf { branch 'dev'; branch 'staging'; branch 'main'; branch 'master' }
             }
             steps {
                 script {
@@ -48,8 +48,10 @@ pipeline {
             steps {
                 script {
                     gv.scanFilesystem()
-                    gv.buildDockerImage()
-                    gv.scanDockerImage()
+                    if (env.BRANCH_NAME in ['dev', 'staging', 'prod', 'main', 'master']) {
+                        gv.buildDockerImage()
+                        gv.scanDockerImage()
+                    }
                 }
             }
         }
@@ -64,7 +66,7 @@ pipeline {
 
         stage('Approve Production Deploy') {
             when {
-                branch 'main'
+                anyOf { branch 'main'; branch 'prod'; branch 'master' }
             }
             steps {
                 input message: "Deploy build ${env.IMAGE_TAG} to production?", ok: 'Deploy'
@@ -73,7 +75,7 @@ pipeline {
 
         stage('Deploy') {
             when {
-                anyOf { branch 'dev'; branch 'staging'; branch 'main' }
+                anyOf { branch 'dev'; branch 'staging'; branch 'main'; branch 'master' }
             }
             steps {
                 script {
