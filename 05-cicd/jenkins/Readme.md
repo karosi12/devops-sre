@@ -1,6 +1,6 @@
 # Jenkins CI/CD example
 
-This folder provides a Jenkins controller image and a multibranch pipeline that builds a Docker image, pushes it to a container registry, and deploys it over SSH. Branches map to environments as follows:
+This folder provides a Jenkins controller image and a multibranch pipeline that scans source code on every branch, selectively builds Docker images, pushes them to a container registry, and deploys them over SSH. Branches map to environments as follows:
 
 | Branch | Target environment | Deployment behavior |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ This folder provides a Jenkins controller image and a multibranch pipeline that 
 | `staging` | `staging` | Builds, pushes, and deploys automatically. |
 | `main` | `prod` | Builds and pushes, then waits for a manual approval before deployment. |
 
-Other branches still run the build and push stages, but do not load an environment file or deploy. Adjust the pipeline `when` conditions if feature branches must not publish images.
+All branches run the Trivy filesystem scan, covering dependencies, secrets, and infrastructure-as-code configuration. Docker image builds and image scans run only for `dev`, `staging`, `prod`, `main`, and `master`; feature branches are source-scanned without building an image.
 
 ## Files
 
@@ -82,25 +82,28 @@ EC2_USER=ubuntu
 CONTAINER_NAME=my-app-dev
 HOST_PORT=80
 CONTAINER_PORT=8080
+HEALTHCHECK_URL=http://127.0.0.1:80/health
+# Optional: path on the deployment host, Docker network, and newline-separated volumes.
+# CONTAINER_ENV_FILE=/etc/my-app/dev.env
+# DOCKER_NETWORK=my-app-network
+# DOCKER_VOLUMES=/srv/my-app/uploads:/app/uploads
 ```
 
-Keep non-secret deployment values in these files only if they are appropriate for source control. Put passwords, private keys, and webhooks in Jenkins credentials—not in `.env` files. The deployment host needs Docker installed and its SSH user needs permission to run Docker.
+Keep non-secret deployment values in these files only if they are appropriate for source control. Put passwords, private keys, and webhooks in Jenkins credentials—not in `.env` files. The deployment host needs Docker and `curl` installed, and its SSH user needs permission to run Docker. The deployment command uses `--restart unless-stopped`; it accepts an optional `CONTAINER_ENV_FILE`, `DOCKER_NETWORK`, and newline-separated `DOCKER_VOLUMES` list for application-specific runtime configuration.
 
 ## Pipeline behavior
 
-The pipeline checks out the source, loads `script.groovy`, selects the target environment, reads that environment's properties file, and tags the container image with Jenkins’ `BUILD_NUMBER`. Before it can push an image, Trivy scans the repository (dependencies, secrets, and IaC) and the locally built Docker image. Unfixed findings are ignored, but any fixed `HIGH` or `CRITICAL` finding fails the build. It pushes the image using:
+The pipeline checks out the source and loads `script.groovy`. Trivy scans the repository (dependencies, secrets, and IaC) on every branch. On `dev`, `staging`, `prod`, `main`, and `master`, it also builds an image, scans that image with Trivy, and tags it with Jenkins’ `BUILD_NUMBER`. Unfixed findings are ignored, but any fixed `HIGH` or `CRITICAL` finding fails the build. For configured deployment branches, it reads the target environment's properties file and pushes the image using:
 
 ```text
 $DOCKER_REGISTRY_URL/$IMAGE_REPOSITORY:$BUILD_NUMBER
 ```
 
-For a deployment, it SSHs to the configured host, pulls that immutable tag, stops/removes the existing named container, and starts a new one with the configured host/container port mapping. The post section removes local image tags, cleans the workspace, and posts success or failure to Slack.
+For an EC2 deployment, it SSHs to the configured host, pulls that immutable tag, and renames the existing container instead of deleting it. The replacement starts with `--restart unless-stopped` and is checked with `curl` against `HEALTHCHECK_URL` (default: `http://127.0.0.1:$HOST_PORT/health`). It retries 12 times at five-second intervals by default; set `HEALTHCHECK_RETRIES` or `HEALTHCHECK_INTERVAL_SECONDS` to override this. If the health check fails, Jenkins removes the replacement and restores the previous container. The post section removes local image tags, cleans the workspace, and posts success or failure to Slack.
 
 ## Recommended hardening and improvements
 
 - Replace `StrictHostKeyChecking=no` with a managed `known_hosts` file to prevent SSH host impersonation.
-- Add a health check and rollback strategy; the current deployment replaces the existing container before verifying the new one is healthy.
-- Add `--restart unless-stopped` (and any required environment variables, volumes, or network) to the remote `docker run` command.
 - Add pipeline `options { disableConcurrentBuilds() }` or environment-specific locks so an older build cannot deploy after a newer one.
 - Restrict which branches may build/push and protect `main` with branch protections and approval rules.
 - Run builds on dedicated ephemeral agents and avoid mounting the host Docker socket into the Jenkins controller for production workloads.
